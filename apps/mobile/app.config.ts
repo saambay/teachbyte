@@ -19,7 +19,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   android: {
     adaptiveIcon: {
-      foregroundImage: './assets/adaptive-icon.png',
+      foregroundImage: './assets/android-icon-foreground.png',
       backgroundColor: '#4F46E5',
     },
     package: 'com.teachbyte.app',
