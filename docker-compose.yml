@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: teachbyte-postgres
+    environment:
+      POSTGRES_USER: teachbyte
+      POSTGRES_PASSWORD: teachbyte
+      POSTGRES_DB: teachbyte
+    ports:
+      - "5432:5432"
+    volumes:
+      - teachbyte-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U teachbyte"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  teachbyte-pgdata:

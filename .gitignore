@@ -1,1 +1,32 @@
-PLAYBOOK.md
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+.expo/
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Expo
+apps/mobile/ios/
+apps/mobile/android/
+apps/mobile/.expo/
+
+# Docker volumes
+teachbyte-pgdata/
+
+# Logs
+*.log
