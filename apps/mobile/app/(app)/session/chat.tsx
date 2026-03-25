@@ -21,6 +21,7 @@ export default function ChatScreen() {
     sessionStatus,
     topicOptions,
     isLoading,
+    error,
     sendMessage,
     completeSession,
   } = useSessionStore();
@@ -106,6 +107,13 @@ export default function ChatScreen() {
                 onPress={() => handleTopicSelect(topic)}
               />
             ))}
+          </View>
+        )}
+
+        {/* Error message */}
+        {error && (
+          <View className="bg-red-50 rounded-xl p-3 mb-3 self-start max-w-[85%]">
+            <Text className="text-red-600 text-sm">{error}</Text>
           </View>
         )}
 
