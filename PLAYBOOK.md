@@ -59,14 +59,18 @@ Prerequisite: PostgreSQL must be running (`npm run db:up` from root).
 ```
 Read SPEC.md agent behavioral contract and CLAUDE.md agent prompt engineering section. In server/src/:
 
-1. Create aiGateway.ts: a service that wraps the Anthropic SDK (`@anthropic-ai/sdk`). It should:
+1. Create aiGateway.ts: a provider-agnostic service that routes LLM calls based on the `LLM_PROVIDER` env var. It should:
    - Accept an AIRequest (system prompt, messages, student context).
-   - Call Claude API using model `claude-sonnet-4-20250514` (non-streaming for MVP — wait for full response).
-   - Return the complete response text.
+   - Support three providers:
+     a. `anthropic`: Uses `@anthropic-ai/sdk`. Model: `claude-sonnet-4-20250514`. Requires `ANTHROPIC_API_KEY`.
+     b. `ollama`: Uses the `openai` npm package pointed at Ollama's OpenAI-compatible endpoint (`OLLAMA_BASE_URL/v1`, default `http://localhost:11434/v1`). Model from `OLLAMA_MODEL` env var (default `qwen3.5:27b`). No API key needed.
+     c. `mock`: Returns canned responses for tests. No external calls.
+   - All providers return the same shape: `{ content: string, usage: { inputTokens: number, outputTokens: number } }`.
+   - Non-streaming for MVP (wait for full response from any provider).
    - Handle errors with retry logic (1 retry, exponential backoff).
    - Enforce a max token limit per response (500 tokens for agent responses).
-   - Log all requests with request ID, agent type, and token usage.
-   - Support a `MOCK_AI=true` env var that returns canned responses instead of calling Claude (for tests and when no API key is available).
+   - Log all requests with request ID, agent type, provider, and token usage.
+   - Default `LLM_PROVIDER` to `ollama` for local development (so it works out of the box with no API keys).
 
 2. Create the agent interface in agents/types.ts:
    - AgentConfig: name, type, systemPromptTemplate, maxTurns.

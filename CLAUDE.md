@@ -36,7 +36,11 @@ TeachByte is a mobile learning app where kids (ages 6-12) learn by teaching AI c
 ### Key Technical Decisions
 
 - **Expo SDK**: 52 (latest stable)
-- **Claude model**: `claude-sonnet-4-20250514` for agent responses (cost-effective, fast enough for chat)
+- **LLM provider**: Switchable via `LLM_PROVIDER` env var. The AI Gateway abstracts this — all agent code is provider-agnostic.
+  - `LLM_PROVIDER=anthropic` (production default): Uses Anthropic SDK, model `claude-sonnet-4-20250514`.
+  - `LLM_PROVIDER=ollama` (local dev): Uses Ollama's OpenAI-compatible API at `http://localhost:11434/v1`. Model controlled by `OLLAMA_MODEL` env var (default: `qwen3.5:27b`). Uses the `openai` npm package pointed at the Ollama endpoint — no Anthropic SDK needed.
+  - `LLM_PROVIDER=mock` (tests): Returns canned responses, no external calls.
+  The gateway normalizes the request/response format so agents don't know or care which provider is active
 - **Streaming**: MVP uses regular HTTP POST request/response (not SSE). The backend waits for the full LLM response, runs guardrails, then returns it. The client shows a typing indicator while waiting. Streaming via SSE is a post-MVP polish item — SSE in React Native requires polyfills and adds complexity.
 - **Auth (development)**: Simple JWT-based auth with a dev-mode middleware. The backend has an auth middleware that supports two modes:
   - `NODE_ENV=development`: accepts a `x-dev-user-id` header OR a simple JWT signed with a local secret. A `/api/auth/dev-login` endpoint generates tokens for test accounts. No Firebase needed for local development.
@@ -132,7 +136,7 @@ teachbyte/
 - All route inputs validated with Zod schemas.
 - Database access only through Prisma. No raw SQL unless absolutely necessary.
 - Agent system prompts are version-controlled strings in the agents/ directory. Not in the database.
-- AI Gateway handles all LLM communication. No direct Anthropic SDK calls outside aiGateway.ts.
+- AI Gateway handles all LLM communication. No direct Anthropic/OpenAI SDK calls outside aiGateway.ts. The gateway supports multiple providers (Anthropic, Ollama, mock) switched via env var.
 
 ### Naming
 - Files: camelCase for utilities, PascalCase for components.
@@ -225,7 +229,10 @@ Respond in JSON: { "clarity": N, "completeness": N, "engagement": N, "summary": 
 
 ```
 DATABASE_URL=postgresql://teachbyte:teachbyte@localhost:5432/teachbyte
-ANTHROPIC_API_KEY=sk-ant-...
+LLM_PROVIDER=ollama              # "anthropic" | "ollama" | "mock"
+ANTHROPIC_API_KEY=sk-ant-...     # Only needed when LLM_PROVIDER=anthropic
+OLLAMA_MODEL=qwen3.5:27b         # Only needed when LLM_PROVIDER=ollama
+OLLAMA_BASE_URL=http://localhost:11434  # Only needed when LLM_PROVIDER=ollama
 JWT_SECRET=dev-secret-change-in-production
 FIREBASE_PROJECT_ID=...          # Only needed in production
 FIREBASE_PRIVATE_KEY=...         # Only needed in production
