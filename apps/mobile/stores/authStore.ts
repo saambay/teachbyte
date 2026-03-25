@@ -1,7 +1,9 @@
 import { create } from 'zustand';
-import * as SecureStore from 'expo-secure-store';
+import { getItem, setItem, deleteItem } from '../utils/storage';
 import api from '../services/api';
-import { API_URL, AUTH_MODE, TEST_PARENT_ID } from '../constants/config';
+import { TEST_PARENT_ID } from '../constants/config';
+
+const TEST_STUDENT_ID = 'b2c3d4e5-f6a7-8901-bcde-f12345678901';
 
 interface AuthState {
   token: string | null;
@@ -32,11 +34,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   initialize: async () => {
     try {
-      const token = await SecureStore.getItemAsync('authToken');
-      const parentId = await SecureStore.getItemAsync('parentId');
-      const parentName = await SecureStore.getItemAsync('parentName');
-      const studentId = await SecureStore.getItemAsync('studentId');
-      const studentName = await SecureStore.getItemAsync('studentName');
+      const token = await getItem('authToken');
+      const parentId = await getItem('parentId');
+      const parentName = await getItem('parentName');
+      const studentId = await getItem('studentId');
+      const studentName = await getItem('studentName');
 
       if (token && parentId) {
         set({
@@ -65,22 +67,38 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       const { token, parent } = response.data;
 
-      await SecureStore.setItemAsync('authToken', token);
-      await SecureStore.setItemAsync('parentId', parent.id);
-      await SecureStore.setItemAsync('parentName', parent.name);
+      await setItem('authToken', token);
+      await setItem('parentId', parent.id);
+      await setItem('parentName', parent.name);
 
-      // Check for existing students
-      const studentsResponse = await api.get(`/api/students/${get().studentId || ''}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      }).catch(() => null);
+      // In dev mode, load the test student directly
+      try {
+        const studentResponse = await api.get(`/api/students/${TEST_STUDENT_ID}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const student = studentResponse.data;
+        await setItem('studentId', student.id);
+        await setItem('studentName', student.name);
 
-      set({
-        token,
-        parentId: parent.id,
-        parentName: parent.name,
-        isAuthenticated: true,
-        isLoading: false,
-      });
+        set({
+          token,
+          parentId: parent.id,
+          parentName: parent.name,
+          studentId: student.id,
+          studentName: student.name,
+          isAuthenticated: true,
+          isLoading: false,
+        });
+      } catch {
+        // No student yet — will redirect to onboard
+        set({
+          token,
+          parentId: parent.id,
+          parentName: parent.name,
+          isAuthenticated: true,
+          isLoading: false,
+        });
+      }
     } catch (error) {
       set({
         isLoading: false,
@@ -90,11 +108,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
-    await SecureStore.deleteItemAsync('authToken');
-    await SecureStore.deleteItemAsync('parentId');
-    await SecureStore.deleteItemAsync('parentName');
-    await SecureStore.deleteItemAsync('studentId');
-    await SecureStore.deleteItemAsync('studentName');
+    await deleteItem('authToken');
+    await deleteItem('parentId');
+    await deleteItem('parentName');
+    await deleteItem('studentId');
+    await deleteItem('studentName');
 
     set({
       token: null,
@@ -113,8 +131,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const response = await api.post('/api/students', data);
       const { student } = response.data;
 
-      await SecureStore.setItemAsync('studentId', student.id);
-      await SecureStore.setItemAsync('studentName', student.name);
+      await setItem('studentId', student.id);
+      await setItem('studentName', student.name);
 
       set({
         studentId: student.id,
@@ -130,8 +148,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   setStudent: (id, name) => {
-    SecureStore.setItemAsync('studentId', id);
-    SecureStore.setItemAsync('studentName', name);
+    setItem('studentId', id);
+    setItem('studentName', name);
     set({ studentId: id, studentName: name });
   },
 }));

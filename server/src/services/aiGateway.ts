@@ -39,7 +39,7 @@ async function callAnthropic(request: AIRequest): Promise<AIResponse> {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
   const response = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
+    model: process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001',
     max_tokens: request.maxTokens || 500,
     system: request.systemPrompt,
     messages: request.messages.map((m) => ({

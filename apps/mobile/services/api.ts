@@ -1,5 +1,5 @@
 import axios from 'axios';
-import * as SecureStore from 'expo-secure-store';
+import { getItem, deleteItem } from '../utils/storage';
 import { API_URL } from '../constants/config';
 
 const api = axios.create({
@@ -12,7 +12,7 @@ const api = axios.create({
 
 // Request interceptor: attach auth token
 api.interceptors.request.use(async (config) => {
-  const token = await SecureStore.getItemAsync('authToken');
+  const token = await getItem('authToken');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -24,8 +24,7 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
-      await SecureStore.deleteItemAsync('authToken');
-      // The auth store will handle redirect
+      await deleteItem('authToken');
     }
     return Promise.reject(error);
   },
