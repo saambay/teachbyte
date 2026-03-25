@@ -1,5 +1,7 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import { authRoutes } from './routes/auth';
+import { sessionRoutes } from './routes/sessions';
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const HOST = process.env.HOST || '0.0.0.0';
@@ -18,9 +20,14 @@ async function buildApp() {
     credentials: true,
   });
 
+  // Health check
   app.get('/api/health', async () => {
     return { status: 'ok', timestamp: new Date().toISOString() };
   });
+
+  // Routes
+  await app.register(authRoutes);
+  await app.register(sessionRoutes);
 
   return app;
 }
