@@ -27,10 +27,23 @@ TeachByte is a mobile learning app where kids (ages 6-12) learn by teaching AI c
 - **Testing**: Vitest
 
 ### Infrastructure (MVP)
+- **Monorepo**: npm workspaces (not turborepo — simpler for this project size)
 - **Backend hosting**: Railway or Render (simple, fast deploys)
-- **Database**: Railway PostgreSQL or Supabase
+- **Database**: Railway PostgreSQL or Supabase (production); Docker Compose PostgreSQL (local dev)
 - **File storage**: Not needed for MVP
 - **CI/CD**: GitHub Actions
+
+### Key Technical Decisions
+
+- **Expo SDK**: 52 (latest stable)
+- **Claude model**: `claude-sonnet-4-20250514` for agent responses (cost-effective, fast enough for chat)
+- **Streaming**: MVP uses regular HTTP POST request/response (not SSE). The backend waits for the full LLM response, runs guardrails, then returns it. The client shows a typing indicator while waiting. Streaming via SSE is a post-MVP polish item — SSE in React Native requires polyfills and adds complexity.
+- **Auth (development)**: Simple JWT-based auth with a dev-mode middleware. The backend has an auth middleware that supports two modes:
+  - `NODE_ENV=development`: accepts a `x-dev-user-id` header OR a simple JWT signed with a local secret. A `/api/auth/dev-login` endpoint generates tokens for test accounts. No Firebase needed for local development.
+  - `NODE_ENV=production`: validates Firebase ID tokens via the Firebase Admin SDK.
+  This means Prompts 1-7 (backend) run without any Firebase project. Firebase setup is required before Prompt 8 (mobile auth) for production, but the mobile app can also use dev-login during development.
+- **CORS**: Fastify registers `@fastify/cors` allowing `localhost:*` in development and the production app domain in production.
+- **iPad/Tablet support**: `supportsTablet: true` in Expo app.config.ts. NativeWind responsive breakpoints (`sm:`, `md:`, `lg:`) used throughout UI. Chat screens max-width 672px centered on tablets. Parent dashboard uses 2-column grid on `md:` and above.
 
 ## Project Structure
 
@@ -182,7 +195,7 @@ IDLE -> STARTING -> COACH_GREETING -> TOPIC_SELECTION -> TEACHING -> COACH_SUMMA
                                                           ABANDONED (if app closed)
 ```
 
-The session state lives on the server. The client polls or uses SSE for state updates.
+The session state lives on the server. For MVP, the client uses regular HTTP request/response (no SSE). The client shows a typing indicator while waiting for the server response.
 
 ### Teaching Quality Scoring
 
@@ -211,10 +224,11 @@ Respond in JSON: { "clarity": N, "completeness": N, "engagement": N, "summary": 
 ### Backend (.env)
 
 ```
-DATABASE_URL=postgresql://...
+DATABASE_URL=postgresql://teachbyte:teachbyte@localhost:5432/teachbyte
 ANTHROPIC_API_KEY=sk-ant-...
-FIREBASE_PROJECT_ID=...
-FIREBASE_PRIVATE_KEY=...
+JWT_SECRET=dev-secret-change-in-production
+FIREBASE_PROJECT_ID=...          # Only needed in production
+FIREBASE_PRIVATE_KEY=...         # Only needed in production
 NODE_ENV=development
 PORT=3000
 LOG_LEVEL=info
@@ -224,7 +238,8 @@ LOG_LEVEL=info
 
 ```
 EXPO_PUBLIC_API_URL=http://localhost:3000
-EXPO_PUBLIC_FIREBASE_API_KEY=...
+EXPO_PUBLIC_AUTH_MODE=dev        # "dev" uses dev-login, "firebase" uses Firebase Auth
+EXPO_PUBLIC_FIREBASE_API_KEY=... # Only needed when AUTH_MODE=firebase
 EXPO_PUBLIC_FIREBASE_PROJECT_ID=...
 ```
 

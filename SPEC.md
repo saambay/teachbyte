@@ -4,6 +4,14 @@
 
 TeachByte is a mobile learning app where kids (ages 6-12) learn by **teaching** AI characters. Instead of quizzing kids, the app flips the dynamic: a cast of curious AI agents ask questions, and the kid explains concepts to them. Research consistently shows that teaching is one of the most effective forms of learning. Each daily session is 10-15 minutes.
 
+## Platform Targets
+
+### MVP (Initial Release)
+- **iOS**: iPhone and iPad. iPad gets responsive layouts (wider chat, side-by-side on parent dashboard) — not just a stretched phone UI.
+- **Android**: Phones and tablets. Same responsive approach.
+
+The app uses NativeWind responsive breakpoints (`sm`, `md`, `lg`) to adapt layouts. Chat screens max out at 672px width on tablets (centered). Parent dashboard uses a 2-column grid on tablets.
+
 ## Product Principles
 
 1. **Teaching is learning.** The core mechanic is always: the kid explains, the AI listens and asks follow-ups.

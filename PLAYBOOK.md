@@ -9,14 +9,20 @@ Each prompt below is designed to be fed to Claude Code in sequence. Each one bui
 ```
 Read SPEC.md and CLAUDE.md. Set up the monorepo structure for TeachByte:
 
-1. Initialize the root as a monorepo (npm workspaces or turborepo).
-2. Create the Expo app in apps/mobile/ using `npx create-expo-app` with TypeScript template and Expo Router.
-3. Create the Fastify backend in server/ with TypeScript, Prisma, and Vitest.
-4. Create the shared package in packages/shared/ for types and Zod schemas.
-5. Install all dependencies listed in CLAUDE.md for each workspace.
-6. Configure TypeScript strict mode in all three workspaces.
-7. Add a root package.json with scripts to run both app and server.
-8. Verify: `npm run dev` starts both the Expo dev server and the Fastify server.
+1. Initialize the root as a monorepo using npm workspaces.
+2. Create a docker-compose.yml at the root with PostgreSQL (user: teachbyte, password: teachbyte, db: teachbyte, port 5432). This is used for ALL local development from this point forward.
+3. Create the Expo app in apps/mobile/ using `npx create-expo-app` with TypeScript template and Expo Router.
+   - Set `supportsTablet: true` in app.config.ts.
+   - Install and configure NativeWind with responsive breakpoint support (sm, md, lg).
+4. Create the Fastify backend in server/ with TypeScript, Prisma, and Vitest.
+   - Register @fastify/cors (allow localhost:* in dev).
+   - Add a health check route: GET /api/health.
+5. Create the shared package in packages/shared/ for types and Zod schemas.
+6. Install all dependencies listed in CLAUDE.md for each workspace.
+7. Configure TypeScript strict mode in all three workspaces.
+8. Create .env.example files for both server/ and apps/mobile/ with all required env vars documented.
+9. Add a root package.json with scripts: `dev` (starts both), `dev:server`, `dev:mobile`, `db:up` (docker-compose up -d), `db:down`.
+10. Verify: `npm run db:up` starts PostgreSQL, `npm run dev` starts both the Expo dev server and the Fastify server.
 ```
 
 ## Prompt 2: Shared Types and Schemas
@@ -37,11 +43,15 @@ Read SPEC.md data model section. In packages/shared/, create:
 ```
 Read SPEC.md data model and CLAUDE.md database conventions. In server/:
 
+Prerequisite: PostgreSQL must be running (`npm run db:up` from root).
+
 1. Write the Prisma schema (schema.prisma) matching the data model. Use snake_case for table/column names with camelCase mapping.
 2. Create the initial migration.
 3. Write seed data in server/src/seed/topics.ts with 25 science topics. Each topic needs: title, description, 3-5 key concepts, 2-3 common misconceptions, difficulty level (1-3), and age range. Topics should span: biology (photosynthesis, animal adaptations, human body), physics (gravity, light, sound, magnets), earth science (weather, volcanoes, water cycle), space (planets, stars, moon phases), chemistry basics (states of matter, mixtures).
-4. Write a seed script that inserts topics and a test parent + student account.
-5. Run the migration and seed. Verify with a Prisma Studio check.
+4. Write a seed script that inserts topics and a test parent + student account. The test accounts are:
+   - Parent: email=test@teachbyte.dev, name="Test Parent", id=a known UUID.
+   - Student: name="Alex", age=9, gradeLevel=4, linked to test parent.
+5. Run the migration and seed. Verify data was inserted correctly.
 ```
 
 ## Prompt 4: AI Gateway and Agent Framework
@@ -49,13 +59,14 @@ Read SPEC.md data model and CLAUDE.md database conventions. In server/:
 ```
 Read SPEC.md agent behavioral contract and CLAUDE.md agent prompt engineering section. In server/src/:
 
-1. Create aiGateway.ts: a service that wraps the Anthropic SDK. It should:
+1. Create aiGateway.ts: a service that wraps the Anthropic SDK (`@anthropic-ai/sdk`). It should:
    - Accept an AIRequest (system prompt, messages, student context).
-   - Call the Claude API with streaming enabled.
-   - Return a stream of text chunks.
+   - Call Claude API using model `claude-sonnet-4-20250514` (non-streaming for MVP — wait for full response).
+   - Return the complete response text.
    - Handle errors with retry logic (1 retry, exponential backoff).
    - Enforce a max token limit per response (500 tokens for agent responses).
    - Log all requests with request ID, agent type, and token usage.
+   - Support a `MOCK_AI=true` env var that returns canned responses instead of calling Claude (for tests and when no API key is available).
 
 2. Create the agent interface in agents/types.ts:
    - AgentConfig: name, type, systemPromptTemplate, maxTurns.
@@ -111,9 +122,16 @@ Read SPEC.md session state machine and API design. In server/src/:
    - State transitions: IDLE -> STARTING -> COACH_GREETING -> TOPIC_SELECTION -> TEACHING -> COACH_SUMMARY -> COMPLETED.
    - Handle ABANDONED state (session open > 30 minutes with no activity).
 
-2. Create route handlers in routes/sessions.ts:
+2. Create auth middleware in middleware/auth.ts:
+   - In development (NODE_ENV=development): accept `x-dev-user-id` header OR validate JWT signed with JWT_SECRET.
+   - Add a POST /api/auth/dev-login route that accepts { parentId } and returns a signed JWT. Only available in development.
+   - In production: validate Firebase ID token via Firebase Admin SDK.
+   - Attach the authenticated parent ID to the request context.
+   - Student endpoints should verify the student belongs to the authenticated parent.
+
+3. Create route handlers in routes/sessions.ts:
    - POST /api/sessions/start - starts session, returns greeting.
-   - POST /api/sessions/:id/message - sends message, returns agent response (streaming via SSE).
+   - POST /api/sessions/:id/message - sends message, returns agent response (regular JSON response, not streaming — client shows typing indicator while waiting).
    - POST /api/sessions/:id/complete - completes session.
    - GET /api/sessions/:id - gets session state and history.
    - GET /api/sessions/history/:studentId - paginated session history.
@@ -161,20 +179,22 @@ Read CLAUDE.md mobile conventions. In apps/mobile/:
    - (app)/ group: home.tsx, session/ folder, parent/ folder.
    - _layout.tsx: root layout with auth guard (redirect to login if not authenticated).
 
-2. Set up Firebase Auth:
-   - Parent email/password sign-up and login.
-   - Store auth token in SecureStore.
+2. Set up auth with dual-mode support (controlled by EXPO_PUBLIC_AUTH_MODE env var):
+   - "dev" mode (default for local development): calls POST /api/auth/dev-login with the test parent ID from seed data to get a JWT. Shows a simple "Dev Login" button instead of email/password form. No Firebase dependency.
+   - "firebase" mode (production): Parent email/password sign-up and login via Firebase Auth.
+   - Store auth token in SecureStore regardless of mode.
    - Create authStore.ts (Zustand) with: user, token, isAuthenticated, login(), logout(), onboard().
 
 3. Set up the API client:
    - Axios instance in services/api.ts.
-   - Request interceptor: attach auth token from SecureStore.
+   - Request interceptor: attach auth token from SecureStore as Bearer token.
    - Response interceptor: handle 401 (redirect to login).
    - Base URL from EXPO_PUBLIC_API_URL env var.
 
-4. Build the login screen: email + password form, sign up link.
+4. Build the login screen: in dev mode show "Dev Login" button; in firebase mode show email + password form with sign up link.
 5. Build the onboarding screen: child name, age (picker), grade level. Creates student profile via API.
-6. Verify: can sign up, log in, complete onboarding, and land on home screen.
+6. All screens must use NativeWind responsive classes. Content on tablet should be centered with max-width, not stretched edge-to-edge.
+7. Verify: can log in (dev mode), complete onboarding, and land on home screen.
 ```
 
 ## Prompt 9: Mobile App - Home Screen and Topic Selection
@@ -201,7 +221,8 @@ In apps/mobile/:
    - Displays 2-3 topic cards with title and short description.
    - Kid taps a topic to select it.
 
-5. Verify: home screen loads, shows streak, "Start session" triggers Coach greeting, topic cards appear.
+5. All layouts must be responsive: on tablets (md: breakpoint), center content with max-width and use available space for larger topic cards / more visible recent topics.
+6. Verify: home screen loads, shows streak, "Start session" triggers Coach greeting, topic cards appear.
 ```
 
 ## Prompt 10: Mobile App - Chat Interface
@@ -223,9 +244,9 @@ In apps/mobile/:
    - AgentHeader.tsx: agent avatar + name + personality tagline.
 
 3. Integrate with sessionStore:
-   - sendMessage() calls the API and streams the response.
-   - Messages appear in real time as they stream in.
-   - Handle SSE streaming from the backend (or fall back to polling if SSE is complex in RN).
+   - sendMessage() calls the API and waits for the JSON response (no streaming for MVP).
+   - Show TypingIndicator while waiting for the response.
+   - On response, add the agent message to the message list and scroll to bottom.
 
 4. Handle session state transitions in the UI:
    - COACH_GREETING: show Coach avatar and greeting message.
@@ -233,7 +254,8 @@ In apps/mobile/:
    - TEACHING: show Teaching Buddy avatar, enable free text input.
    - COACH_SUMMARY: show Coach avatar and summary. Show "Session Complete" button.
 
-5. Verify: full chat flow works end to end. Coach greets, kid picks topic, buddy engages, session completes.
+5. Chat container must be max-width 672px centered on tablets. Input bar spans full width but content area is constrained.
+6. Verify: full chat flow works end to end. Coach greets, kid picks topic, buddy engages, session completes.
 ```
 
 ## Prompt 11: Mobile App - Session Completion and Streaks
@@ -278,7 +300,8 @@ In apps/mobile/:
    - Session reminder time picker.
    - Child profile editor (name, age, grade).
 
-3. Verify: parent can see dashboard with real data after the child completes sessions.
+3. On tablets (md: breakpoint), parent dashboard uses a 2-column grid layout: weekly summary + streak on left, session list + topic progress on right.
+4. Verify: parent can see dashboard with real data after the child completes sessions.
 ```
 
 ## Prompt 13: Polish and Edge Cases
@@ -314,7 +337,7 @@ Set up deployment for both backend and mobile:
 
 1. Backend:
    - Create a Dockerfile for the Fastify server.
-   - Add a docker-compose.yml for local development (server + PostgreSQL).
+   - Update docker-compose.yml (already has PostgreSQL from Prompt 1) to also run the server container.
    - Configure Railway or Render deployment (railway.toml or render.yaml).
    - Set up environment variables for production.
    - Run Prisma migrations on deploy.
