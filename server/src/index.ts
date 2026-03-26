@@ -19,7 +19,7 @@ async function buildApp() {
   await app.register(cors, {
     origin: process.env.NODE_ENV === 'production'
       ? process.env.CORS_ORIGIN || false
-      : /localhost:.*/,
+      : true,
     credentials: true,
   });
 
