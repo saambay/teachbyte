@@ -56,7 +56,11 @@ export default function ChatScreen() {
 
   // Determine current agent
   const currentAgent =
-    sessionStatus === 'teaching' ? 'teaching_buddy' : 'coach';
+    sessionStatus === 'teaching'
+      ? 'teaching_buddy'
+      : sessionStatus === 'exploring'
+        ? 'explorer'
+        : 'coach';
 
   const showTopicSelection =
     sessionStatus === 'topic_selection' && topicOptions.length > 0;
@@ -74,7 +78,7 @@ export default function ChatScreen() {
     >
       {/* Agent Header */}
       <View className="pt-12">
-        <AgentHeader agentType={currentAgent as 'coach' | 'teaching_buddy'} />
+        <AgentHeader agentType={currentAgent as 'coach' | 'teaching_buddy' | 'explorer'} />
       </View>
 
       {/* Messages */}
@@ -143,7 +147,9 @@ export default function ChatScreen() {
           placeholder={
             showTopicSelection
               ? 'Tap a topic above...'
-              : 'Explain it in your own words...'
+              : sessionStatus === 'exploring'
+                ? 'What do you think? Ready to teach?'
+                : 'Explain it in your own words...'
           }
         />
       )}

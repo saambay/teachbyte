@@ -147,7 +147,7 @@ export const coachAgent: Agent = {
         return {
           content,
           sessionAction: 'transition',
-          nextAgent: AgentType.TEACHING_BUDDY,
+          nextAgent: AgentType.EXPLORER,
         };
       case 'summary':
         return {

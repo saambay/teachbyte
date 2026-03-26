@@ -30,3 +30,6 @@ teachbyte-pgdata/
 
 # Logs
 *.log
+
+# Playbooks (private implementation prompts)
+PLAYBOOK-PHASE2.md

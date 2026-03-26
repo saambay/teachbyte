@@ -99,6 +99,10 @@ const MOCK_RESPONSES: Record<string, string[]> = {
     "Oh I think I'm starting to understand! So you're saying that... actually, can you explain that part again?",
     "That makes so much sense now! You're a great teacher! I have one more question though...",
   ],
+  explorer: [
+    "Here's something amazing! Did you know that this topic connects to so many cool things in science? Let me give you a quick peek before you teach Buddy. The key thing to know is that everything in nature is connected — and this topic is a perfect example! Now you know the basics — Buddy is really going to need your help understanding this!",
+    "Wow, this is one of my favorite topics! There's so much cool stuff here. Let me share a quick fun fact to get you excited. Ready? Now that you've got the basics, Buddy is waiting and really confused about this one — time to be their teacher!",
+  ],
 };
 
 let mockIndex: Record<string, number> = {};

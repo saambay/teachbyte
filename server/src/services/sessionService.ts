@@ -6,6 +6,7 @@ import { assembleContext } from './contextAssembler';
 import { validateResponse, validateStudentMessage } from './guardrails';
 import { coachAgent } from '../agents/coach';
 import { teachingBuddyAgent } from '../agents/teachingBuddy';
+import { explorerAgent } from '../agents/explorer';
 import pino from 'pino';
 
 const prisma = new PrismaClient();
@@ -139,15 +140,62 @@ export async function sendMessage(
     // Student is selecting a topic — find the topic they chose
     const selectedTopic = await findTopicByMessage(sanitizedContent, session.student_id);
     if (selectedTopic) {
+      // Set topic and transition to EXPLORING
       await prisma.session.update({
         where: { id: sessionId },
         data: {
           topic_id: selectedTopic.id,
-          status: SessionStatus.TEACHING,
+          status: SessionStatus.EXPLORING,
         },
       });
-      newStatus = SessionStatus.TEACHING;
-      agentType = AgentType.TEACHING_BUDDY;
+
+      // Generate Explorer micro-lesson (one-shot)
+      const explorerContext = await assembleContext(
+        session.student_id,
+        sessionId,
+        AgentType.EXPLORER,
+      );
+
+      const explorerAiResponse = await sendAIRequest({
+        agentType: AgentType.EXPLORER,
+        systemPrompt: explorerContext.systemPrompt,
+        messages: explorerContext.messages.length > 0
+          ? explorerContext.messages
+          : [{ role: 'user', content: `I want to learn about ${selectedTopic.title}` }],
+      });
+
+      const explorerGuardrail = validateResponse(explorerAiResponse.content, selectedTopic.title);
+      const explorerContent = explorerGuardrail.safe
+        ? (explorerGuardrail.filteredContent || explorerAiResponse.content)
+        : `Let me tell you something cool about ${selectedTopic.title} before you teach Buddy! This is a really fascinating topic. Buddy is going to need your help understanding it!`;
+
+      // Save Explorer message
+      const explorerMessage = await prisma.sessionMessage.create({
+        data: {
+          id: randomUUID(),
+          session_id: sessionId,
+          role: 'agent',
+          content: explorerContent,
+          agent_type: AgentType.EXPLORER,
+        },
+      });
+
+      // Immediately transition to TEACHING
+      await prisma.session.update({
+        where: { id: sessionId },
+        data: { status: SessionStatus.TEACHING },
+      });
+
+      return {
+        message: {
+          id: explorerMessage.id,
+          role: 'agent',
+          content: explorerContent,
+          agentType: AgentType.EXPLORER,
+          timestamp: explorerMessage.created_at,
+        },
+        sessionStatus: SessionStatus.TEACHING,
+      };
     } else {
       // Couldn't determine topic, ask again
       agentType = AgentType.COACH;
@@ -190,7 +238,12 @@ export async function sendMessage(
   }
 
   // Check if teaching session should end (after 8+ messages)
-  const agent = agentType === AgentType.TEACHING_BUDDY ? teachingBuddyAgent : coachAgent;
+  const agentLookup = {
+    [AgentType.TEACHING_BUDDY]: teachingBuddyAgent,
+    [AgentType.EXPLORER]: explorerAgent,
+    [AgentType.COACH]: coachAgent,
+  };
+  const agent = agentLookup[agentType] || coachAgent;
   const allMessages = await prisma.sessionMessage.count({ where: { session_id: sessionId } });
   const agentResponse = agent.parseResponse(responseContent, {
     student: { id: session.student_id, name: '', age: 0, gradeLevel: 0, currentStreak: 0 },
