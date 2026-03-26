@@ -1,0 +1,38 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: teachbyte-postgres
+    environment:
+      POSTGRES_USER: teachbyte
+      POSTGRES_PASSWORD: teachbyte
+      POSTGRES_DB: teachbyte
+    ports:
+      - "5432:5432"
+    volumes:
+      - teachbyte-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U teachbyte"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    container_name: teachbyte-server
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://teachbyte:teachbyte@postgres:5432/teachbyte
+      NODE_ENV: production
+      PORT: 3000
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  teachbyte-pgdata:

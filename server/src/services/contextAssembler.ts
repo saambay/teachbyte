@@ -1,0 +1,125 @@
+import { PrismaClient } from '@prisma/client';
+import { AgentType } from '@teachbyte/shared';
+import { AgentPromptParams, StudentContext, TopicContext, SessionContext } from '../agents/types';
+import { coachAgent } from '../agents/coach';
+import { teachingBuddyAgent } from '../agents/teachingBuddy';
+import { AIMessage } from './aiGateway';
+
+const prisma = new PrismaClient();
+
+const MAX_SYSTEM_PROMPT_CHARS = 6000; // ~1500 tokens at ~4 chars/token
+
+export async function assembleContext(
+  studentId: string,
+  sessionId: string,
+  agentType: AgentType,
+): Promise<{ systemPrompt: string; messages: AIMessage[] }> {
+  // Fetch all data in parallel
+  const [student, session, streak, recentProgress] = await Promise.all([
+    prisma.student.findUniqueOrThrow({ where: { id: studentId } }),
+    prisma.session.findUniqueOrThrow({
+      where: { id: sessionId },
+      include: {
+        topic: true,
+        messages: { orderBy: { created_at: 'asc' } },
+      },
+    }),
+    prisma.streakData.findUnique({ where: { student_id: studentId } }),
+    prisma.studentProgress.findMany({
+      where: { student_id: studentId },
+      include: { topic: true },
+      orderBy: { last_attempted_at: 'desc' },
+      take: 5,
+    }),
+  ]);
+
+  // Build student context
+  const lastProgress = recentProgress.find((p) => p.last_attempted_at);
+  const studentContext: StudentContext = {
+    id: student.id,
+    name: student.name,
+    age: student.age,
+    gradeLevel: student.grade_level,
+    currentStreak: streak?.current_streak || 0,
+    lastTopicTitle: lastProgress?.topic.title,
+  };
+
+  // Build topic context
+  let topicContext: TopicContext | undefined;
+  if (session.topic) {
+    topicContext = {
+      id: session.topic.id,
+      title: session.topic.title,
+      description: session.topic.description,
+      keyConcepts: session.topic.key_concepts,
+      commonMisconceptions: session.topic.common_misconceptions,
+      difficultyLevel: session.topic.difficulty_level,
+    };
+  }
+
+  // Build session context
+  const sessionContext: SessionContext = {
+    sessionId: session.id,
+    status: session.status,
+    messageCount: session.messages.length,
+    conversationSummary: summarizeConversation(session.messages),
+  };
+
+  // Build progress summary
+  const progressSummary = recentProgress.length > 0
+    ? recentProgress.map((p) =>
+        `${p.topic.title}: ${p.status} (${p.sessions_completed} sessions)`
+      ).join('\n')
+    : undefined;
+
+  const params: AgentPromptParams = {
+    student: studentContext,
+    topic: topicContext,
+    session: sessionContext,
+    recentProgressSummary: progressSummary,
+  };
+
+  // Get the right agent
+  const agent = agentType === AgentType.COACH ? coachAgent : teachingBuddyAgent;
+  let systemPrompt = agent.buildSystemPrompt(params);
+
+  // Enforce token budget by truncating if needed
+  if (systemPrompt.length > MAX_SYSTEM_PROMPT_CHARS) {
+    systemPrompt = systemPrompt.slice(0, MAX_SYSTEM_PROMPT_CHARS) + '\n[Context truncated for length]';
+  }
+
+  // Convert DB messages to AI messages
+  const messages: AIMessage[] = session.messages.map((m) => ({
+    role: m.role === 'student' ? 'user' as const : 'assistant' as const,
+    content: m.content,
+  }));
+
+  return { systemPrompt, messages };
+}
+
+function summarizeConversation(
+  messages: { role: string; content: string; agent_type: string | null }[],
+): string | undefined {
+  if (messages.length === 0) return undefined;
+
+  // For short conversations, just note the exchange count
+  if (messages.length <= 2) {
+    return `${messages.length} messages exchanged so far.`;
+  }
+
+  // Build a brief summary from the last few messages
+  const recentMessages = messages.slice(-4);
+  const summary = recentMessages
+    .map((m) => {
+      const speaker = m.role === 'student' ? 'Student' : 'Agent';
+      const truncated = m.content.length > 100
+        ? m.content.slice(0, 100) + '...'
+        : m.content;
+      return `${speaker}: ${truncated}`;
+    })
+    .join('\n');
+
+  return `${messages.length} messages exchanged. Recent:\n${summary}`;
+}
+
+export { summarizeConversation };
