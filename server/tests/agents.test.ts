@@ -3,6 +3,7 @@ import { AgentType } from '@teachbyte/shared';
 import { coachAgent, getCoachMode } from '../src/agents/coach';
 import { teachingBuddyAgent } from '../src/agents/teachingBuddy';
 import { explorerAgent } from '../src/agents/explorer';
+import { challengerAgent } from '../src/agents/challenger';
 import { AgentPromptParams, StudentContext, TopicContext, SessionContext } from '../src/agents/types';
 
 const mockStudent: StudentContext = {
@@ -284,5 +285,75 @@ describe('Teaching Buddy Agent', () => {
 
     const response = teachingBuddyAgent.parseResponse('I get it now!', params);
     expect(response.sessionAction).toBe('transition');
+  });
+});
+
+describe('Challenger Agent', () => {
+  const mockChallenge = {
+    title: 'The Moon Jump',
+    scenario: 'An astronaut on the Moon can jump six times higher than on Earth.',
+    question: 'How high could they jump on the Moon?',
+    hints: ['The Moon is smaller than Earth', 'Smaller objects have weaker gravity'],
+  };
+
+  it('builds a prompt with challenge scenario', () => {
+    const params: AgentPromptParams = {
+      student: mockStudent,
+      topic: mockTopic,
+      session: { sessionId: 's1', status: 'challenging', messageCount: 0 },
+      challengeContext: mockChallenge,
+    };
+
+    const prompt = challengerAgent.buildSystemPrompt(params);
+
+    expect(prompt).toContain('Challenger');
+    expect(prompt).toContain('Alex');
+    expect(prompt).toContain('The Moon Jump');
+    expect(prompt).toContain('astronaut');
+  });
+
+  it('throws if no topic provided', () => {
+    const params: AgentPromptParams = {
+      student: mockStudent,
+      session: { sessionId: 's1', status: 'challenging', messageCount: 0 },
+      challengeContext: mockChallenge,
+    };
+
+    expect(() => challengerAgent.buildSystemPrompt(params)).toThrow('Challenger requires a topic');
+  });
+
+  it('throws if no challenge context provided', () => {
+    const params: AgentPromptParams = {
+      student: mockStudent,
+      topic: mockTopic,
+      session: { sessionId: 's1', status: 'challenging', messageCount: 0 },
+    };
+
+    expect(() => challengerAgent.buildSystemPrompt(params)).toThrow('Challenger requires a challenge scenario');
+  });
+
+  it('signals continue for early conversation', () => {
+    const params: AgentPromptParams = {
+      student: mockStudent,
+      topic: mockTopic,
+      session: { sessionId: 's1', status: 'challenging', messageCount: 2 },
+      challengeContext: mockChallenge,
+    };
+
+    const response = challengerAgent.parseResponse('Hmm let me think...', params);
+    expect(response.sessionAction).toBe('continue');
+  });
+
+  it('signals transition after enough exchanges', () => {
+    const params: AgentPromptParams = {
+      student: mockStudent,
+      topic: mockTopic,
+      session: { sessionId: 's1', status: 'challenging', messageCount: 6 },
+      challengeContext: mockChallenge,
+    };
+
+    const response = challengerAgent.parseResponse('Great job!', params);
+    expect(response.sessionAction).toBe('transition');
+    expect(response.nextAgent).toBe(AgentType.COACH);
   });
 });

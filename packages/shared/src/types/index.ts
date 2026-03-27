@@ -17,6 +17,7 @@ export enum SessionStatus {
   TOPIC_SELECTION = 'topic_selection',
   EXPLORING = 'exploring',
   TEACHING = 'teaching',
+  CHALLENGING = 'challenging',
   COACH_SUMMARY = 'coach_summary',
   COMPLETED = 'completed',
   ABANDONED = 'abandoned',
@@ -116,6 +117,26 @@ export interface TopicRelationship {
   topicId: string;
   relatedTopicId: string;
   relationshipType: TopicRelationshipType;
+}
+
+export interface ChallengeScenario {
+  id: string;
+  topicId: string;
+  title: string;
+  scenario: string;
+  question: string;
+  hints: string[];
+  difficultyLevel: 1 | 2 | 3;
+  ageRange: { min: number; max: number };
+}
+
+export interface DifficultyProfile {
+  studentId: string;
+  currentLevel: number;
+  successRate: number;
+  consecutiveSuccesses: number;
+  consecutiveFailures: number;
+  lastCalibrationAt?: Date;
 }
 
 export interface Topic {

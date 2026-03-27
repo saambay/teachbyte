@@ -59,12 +59,20 @@ export interface RelatedTopicInfo {
   relationship: string;
 }
 
+export interface ChallengePromptContext {
+  title: string;
+  scenario: string;
+  question: string;
+  hints: string[];
+}
+
 export interface AgentPromptParams {
   student: StudentContext;
   topic?: TopicContext;
   session: SessionContext;
   recentProgressSummary?: string;
   relatedTopics?: RelatedTopicInfo[];
+  challengeContext?: ChallengePromptContext;
 }
 
 export interface Agent {

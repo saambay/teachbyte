@@ -60,7 +60,9 @@ export default function ChatScreen() {
       ? 'teaching_buddy'
       : sessionStatus === 'exploring'
         ? 'explorer'
-        : 'coach';
+        : sessionStatus === 'challenging'
+          ? 'challenger'
+          : 'coach';
 
   const showTopicSelection =
     sessionStatus === 'topic_selection' && topicOptions.length > 0;
@@ -78,7 +80,7 @@ export default function ChatScreen() {
     >
       {/* Agent Header */}
       <View className="pt-12">
-        <AgentHeader agentType={currentAgent as 'coach' | 'teaching_buddy' | 'explorer'} />
+        <AgentHeader agentType={currentAgent as 'coach' | 'teaching_buddy' | 'explorer' | 'challenger'} />
       </View>
 
       {/* Messages */}
@@ -149,7 +151,9 @@ export default function ChatScreen() {
               ? 'Tap a topic above...'
               : sessionStatus === 'exploring'
                 ? 'What do you think? Ready to teach?'
-                : 'Explain it in your own words...'
+                : sessionStatus === 'challenging'
+                  ? 'Think about it and share your answer...'
+                  : 'Explain it in your own words...'
           }
         />
       )}

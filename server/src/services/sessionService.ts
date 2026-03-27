@@ -7,6 +7,8 @@ import { validateResponse, validateStudentMessage } from './guardrails';
 import { coachAgent } from '../agents/coach';
 import { teachingBuddyAgent } from '../agents/teachingBuddy';
 import { explorerAgent } from '../agents/explorer';
+import { challengerAgent } from '../agents/challenger';
+import { getChallengeForStudent } from './difficultyService';
 import pino from 'pino';
 
 const prisma = new PrismaClient();
@@ -204,6 +206,8 @@ export async function sendMessage(
     }
   } else if (currentStatus === SessionStatus.TEACHING) {
     agentType = AgentType.TEACHING_BUDDY;
+  } else if (currentStatus === SessionStatus.CHALLENGING) {
+    agentType = AgentType.CHALLENGER;
   } else {
     agentType = AgentType.COACH;
   }
@@ -212,15 +216,34 @@ export async function sendMessage(
   const agentLookup = {
     [AgentType.TEACHING_BUDDY]: teachingBuddyAgent,
     [AgentType.EXPLORER]: explorerAgent,
+    [AgentType.CHALLENGER]: challengerAgent,
     [AgentType.COACH]: coachAgent,
   };
   const agent = agentLookup[agentType] || coachAgent;
 
   // Get the updated session for context assembly
+  // Build challenge context if needed
+  let challengeContext: { title: string; scenario: string; question: string; hints: string[] } | undefined;
+  if (agentType === AgentType.CHALLENGER) {
+    const currentSession = await prisma.session.findUniqueOrThrow({ where: { id: sessionId } });
+    if (currentSession.topic_id) {
+      const challenge = await getChallengeForStudent(session.student_id, currentSession.topic_id);
+      if (challenge) {
+        challengeContext = {
+          title: challenge.title,
+          scenario: challenge.scenario,
+          question: challenge.question,
+          hints: challenge.hints,
+        };
+      }
+    }
+  }
+
   const { systemPrompt, messages } = await assembleContext(
     session.student_id,
     sessionId,
     agentType,
+    challengeContext ? { challengeContext } : undefined,
   );
 
   const aiResponse = await sendAIRequest({
@@ -254,6 +277,36 @@ export async function sendMessage(
   });
 
   if (agentResponse.sessionAction === 'transition' && newStatus === SessionStatus.TEACHING) {
+    // Try to start a challenge after teaching
+    const updatedForChallenge = await prisma.session.findUniqueOrThrow({
+      where: { id: sessionId },
+    });
+    if (updatedForChallenge.topic_id) {
+      const challenge = await getChallengeForStudent(session.student_id, updatedForChallenge.topic_id);
+      if (challenge) {
+        newStatus = SessionStatus.CHALLENGING;
+        await prisma.session.update({
+          where: { id: sessionId },
+          data: { status: SessionStatus.CHALLENGING },
+        });
+      } else {
+        newStatus = SessionStatus.COACH_SUMMARY;
+        await prisma.session.update({
+          where: { id: sessionId },
+          data: { status: SessionStatus.COACH_SUMMARY },
+        });
+      }
+    } else {
+      newStatus = SessionStatus.COACH_SUMMARY;
+      await prisma.session.update({
+        where: { id: sessionId },
+        data: { status: SessionStatus.COACH_SUMMARY },
+      });
+    }
+  }
+
+  // When challenger signals transition, go to coach summary
+  if (agentResponse.sessionAction === 'transition' && newStatus === SessionStatus.CHALLENGING) {
     newStatus = SessionStatus.COACH_SUMMARY;
     await prisma.session.update({
       where: { id: sessionId },

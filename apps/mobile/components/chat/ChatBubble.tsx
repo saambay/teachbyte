@@ -16,7 +16,7 @@ export function ChatBubble({ role, content, agentType }: ChatBubbleProps) {
     >
       {isAgent && agentType && (
         <Text className="text-xs text-gray-400 mb-1 ml-1">
-          {agentType === 'coach' ? 'Coach' : agentType === 'explorer' ? 'Explorer' : 'Buddy'}
+          {agentType === 'coach' ? 'Coach' : agentType === 'explorer' ? 'Explorer' : agentType === 'challenger' ? 'Challenger' : 'Buddy'}
         </Text>
       )}
       <View
@@ -24,7 +24,9 @@ export function ChatBubble({ role, content, agentType }: ChatBubbleProps) {
           isAgent
             ? agentType === 'explorer'
               ? 'bg-emerald-50 rounded-tl-sm'
-              : 'bg-gray-100 rounded-tl-sm'
+              : agentType === 'challenger'
+                ? 'bg-amber-50 rounded-tl-sm'
+                : 'bg-gray-100 rounded-tl-sm'
             : 'bg-primary-600 rounded-tr-sm'
         }`}
       >

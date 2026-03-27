@@ -1,9 +1,10 @@
 import { PrismaClient } from '@prisma/client';
 import { AgentType } from '@teachbyte/shared';
-import { Agent, AgentPromptParams, RelatedTopicInfo, StudentContext, TopicContext, SessionContext } from '../agents/types';
+import { Agent, AgentPromptParams, ChallengePromptContext, RelatedTopicInfo, StudentContext, TopicContext, SessionContext } from '../agents/types';
 import { coachAgent } from '../agents/coach';
 import { teachingBuddyAgent } from '../agents/teachingBuddy';
 import { explorerAgent } from '../agents/explorer';
+import { challengerAgent } from '../agents/challenger';
 import { AIMessage } from './aiGateway';
 
 const prisma = new PrismaClient();
@@ -14,6 +15,7 @@ export async function assembleContext(
   studentId: string,
   sessionId: string,
   agentType: AgentType,
+  options?: { challengeContext?: ChallengePromptContext },
 ): Promise<{ systemPrompt: string; messages: AIMessage[] }> {
   // Fetch all data in parallel
   const [student, session, streak, recentProgress] = await Promise.all([
@@ -94,6 +96,7 @@ export async function assembleContext(
     session: sessionContext,
     recentProgressSummary: progressSummary,
     relatedTopics,
+    challengeContext: options?.challengeContext,
   };
 
   // Get the right agent
@@ -101,6 +104,7 @@ export async function assembleContext(
     [AgentType.COACH]: coachAgent,
     [AgentType.TEACHING_BUDDY]: teachingBuddyAgent,
     [AgentType.EXPLORER]: explorerAgent,
+    [AgentType.CHALLENGER]: challengerAgent,
   };
   const agent = agentMap[agentType] || coachAgent;
   let systemPrompt = agent.buildSystemPrompt(params);
