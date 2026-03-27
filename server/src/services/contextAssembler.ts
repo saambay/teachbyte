@@ -5,6 +5,7 @@ import { coachAgent } from '../agents/coach';
 import { teachingBuddyAgent } from '../agents/teachingBuddy';
 import { explorerAgent } from '../agents/explorer';
 import { challengerAgent } from '../agents/challenger';
+import { storytellerAgent } from '../agents/storyteller';
 import { AIMessage } from './aiGateway';
 
 const prisma = new PrismaClient();
@@ -105,6 +106,7 @@ export async function assembleContext(
     [AgentType.TEACHING_BUDDY]: teachingBuddyAgent,
     [AgentType.EXPLORER]: explorerAgent,
     [AgentType.CHALLENGER]: challengerAgent,
+    [AgentType.STORYTELLER]: storytellerAgent,
   };
   const agent = agentMap[agentType] || coachAgent;
   let systemPrompt = agent.buildSystemPrompt(params);

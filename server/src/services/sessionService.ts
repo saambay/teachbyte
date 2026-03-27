@@ -8,6 +8,7 @@ import { coachAgent } from '../agents/coach';
 import { teachingBuddyAgent } from '../agents/teachingBuddy';
 import { explorerAgent } from '../agents/explorer';
 import { challengerAgent } from '../agents/challenger';
+import { storytellerAgent } from '../agents/storyteller';
 import { getChallengeForStudent } from './difficultyService';
 import pino from 'pino';
 
@@ -208,6 +209,8 @@ export async function sendMessage(
     agentType = AgentType.TEACHING_BUDDY;
   } else if (currentStatus === SessionStatus.CHALLENGING) {
     agentType = AgentType.CHALLENGER;
+  } else if (currentStatus === SessionStatus.STORYTELLING) {
+    agentType = AgentType.STORYTELLER;
   } else {
     agentType = AgentType.COACH;
   }
@@ -217,6 +220,7 @@ export async function sendMessage(
     [AgentType.TEACHING_BUDDY]: teachingBuddyAgent,
     [AgentType.EXPLORER]: explorerAgent,
     [AgentType.CHALLENGER]: challengerAgent,
+    [AgentType.STORYTELLER]: storytellerAgent,
     [AgentType.COACH]: coachAgent,
   };
   const agent = agentLookup[agentType] || coachAgent;
@@ -305,8 +309,17 @@ export async function sendMessage(
     }
   }
 
-  // When challenger signals transition, go to coach summary
+  // When challenger signals transition, go to storytelling
   if (agentResponse.sessionAction === 'transition' && newStatus === SessionStatus.CHALLENGING) {
+    newStatus = SessionStatus.STORYTELLING;
+    await prisma.session.update({
+      where: { id: sessionId },
+      data: { status: SessionStatus.STORYTELLING },
+    });
+  }
+
+  // When storyteller signals transition, go to coach summary
+  if (agentResponse.sessionAction === 'transition' && newStatus === SessionStatus.STORYTELLING) {
     newStatus = SessionStatus.COACH_SUMMARY;
     await prisma.session.update({
       where: { id: sessionId },

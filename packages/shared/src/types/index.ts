@@ -18,6 +18,7 @@ export enum SessionStatus {
   EXPLORING = 'exploring',
   TEACHING = 'teaching',
   CHALLENGING = 'challenging',
+  STORYTELLING = 'storytelling',
   COACH_SUMMARY = 'coach_summary',
   COMPLETED = 'completed',
   ABANDONED = 'abandoned',
@@ -117,6 +118,13 @@ export interface TopicRelationship {
   topicId: string;
   relatedTopicId: string;
   relationshipType: TopicRelationshipType;
+}
+
+export enum BuddyVariant {
+  DEFAULT = 'default',
+  ROBOT = 'robot',
+  ARTIST = 'artist',
+  ADVENTURER = 'adventurer',
 }
 
 export interface ChallengeScenario {

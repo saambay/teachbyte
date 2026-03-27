@@ -28,8 +28,9 @@ model Student {
   name        String
   age         Int
   grade_level Int
-  avatar_url  String?
-  created_at  DateTime @default(now())
+  avatar_url    String?
+  buddy_variant String   @default("default") // default, robot, artist, adventurer
+  created_at    DateTime @default(now())
   updated_at  DateTime @updatedAt
 
   parent            Parent             @relation(fields: [parent_id], references: [id], onDelete: Cascade)
