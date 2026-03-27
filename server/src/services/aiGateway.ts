@@ -17,6 +17,7 @@ export interface AIRequest {
   systemPrompt: string;
   messages: AIMessage[];
   maxTokens?: number;
+  temperature?: number;
   requestId?: string;
 }
 
@@ -41,6 +42,7 @@ async function callAnthropic(request: AIRequest): Promise<AIResponse> {
   const response = await client.messages.create({
     model: process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001',
     max_tokens: request.maxTokens || 500,
+    temperature: request.temperature ?? 0.7,
     system: request.systemPrompt,
     messages: request.messages.map((m) => ({
       role: m.role,
@@ -71,6 +73,7 @@ async function callOllama(request: AIRequest): Promise<AIResponse> {
   const response = await client.chat.completions.create({
     model,
     max_tokens: request.maxTokens || 500,
+    temperature: request.temperature ?? 0.7,
     messages: [
       { role: 'system', content: request.systemPrompt },
       ...request.messages,

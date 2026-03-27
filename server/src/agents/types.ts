@@ -37,6 +37,7 @@ export interface AgentConfig {
   type: AgentType;
   systemPromptTemplate: string;
   maxTurns: number;
+  temperature?: number;
 }
 
 export type SessionAction = 'continue' | 'transition' | 'end';

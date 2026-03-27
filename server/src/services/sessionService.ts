@@ -58,6 +58,7 @@ export async function startSession(studentId: string): Promise<{
     agentType: AgentType.COACH,
     systemPrompt,
     messages: messages.length > 0 ? messages : [{ role: 'user', content: 'Start the session.' }],
+    temperature: coachAgent.config.temperature,
   });
 
   const guardrailResult = validateResponse(aiResponse.content);
@@ -162,6 +163,7 @@ export async function sendMessage(
         messages: explorerContext.messages.length > 0
           ? explorerContext.messages
           : [{ role: 'user', content: `I want to learn about ${selectedTopic.title}` }],
+        temperature: explorerAgent.config.temperature,
       });
 
       const explorerGuardrail = validateResponse(explorerAiResponse.content, selectedTopic.title);
@@ -206,6 +208,14 @@ export async function sendMessage(
     agentType = AgentType.COACH;
   }
 
+  // Resolve agent for this request
+  const agentLookup = {
+    [AgentType.TEACHING_BUDDY]: teachingBuddyAgent,
+    [AgentType.EXPLORER]: explorerAgent,
+    [AgentType.COACH]: coachAgent,
+  };
+  const agent = agentLookup[agentType] || coachAgent;
+
   // Get the updated session for context assembly
   const { systemPrompt, messages } = await assembleContext(
     session.student_id,
@@ -217,6 +227,7 @@ export async function sendMessage(
     agentType,
     systemPrompt,
     messages: messages.length > 0 ? messages : [{ role: 'user', content: sanitizedContent }],
+    temperature: agent.config.temperature,
   });
 
   // Run guardrails
@@ -236,14 +247,6 @@ export async function sendMessage(
   } else {
     responseContent = guardrailResult.filteredContent || aiResponse.content;
   }
-
-  // Check if teaching session should end (after 8+ messages)
-  const agentLookup = {
-    [AgentType.TEACHING_BUDDY]: teachingBuddyAgent,
-    [AgentType.EXPLORER]: explorerAgent,
-    [AgentType.COACH]: coachAgent,
-  };
-  const agent = agentLookup[agentType] || coachAgent;
   const allMessages = await prisma.sessionMessage.count({ where: { session_id: sessionId } });
   const agentResponse = agent.parseResponse(responseContent, {
     student: { id: session.student_id, name: '', age: 0, gradeLevel: 0, currentStreak: 0 },
@@ -364,6 +367,7 @@ Respond in JSON only: { "clarity": N, "completeness": N, "engagement": N, "summa
       systemPrompt: 'You are a teaching quality evaluator. Respond with JSON only.',
       messages: [{ role: 'user', content: scoringPrompt }],
       maxTokens: 200,
+      temperature: 0.2,
     });
 
     // Try to parse JSON from response

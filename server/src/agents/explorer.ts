@@ -40,6 +40,7 @@ const config: AgentConfig = {
   type: AgentType.EXPLORER,
   systemPromptTemplate: MICRO_LESSON_TEMPLATE,
   maxTurns: 3,
+  temperature: 0.9,
 };
 
 export const explorerAgent: Agent = {
