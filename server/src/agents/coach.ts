@@ -116,6 +116,7 @@ const coachConfig: AgentConfig = {
   type: AgentType.COACH,
   systemPromptTemplate: '', // Uses mode-specific templates
   maxTurns: 3,
+  temperature: 0.7,
 };
 
 export const coachAgent: Agent = {
@@ -147,7 +148,7 @@ export const coachAgent: Agent = {
         return {
           content,
           sessionAction: 'transition',
-          nextAgent: AgentType.TEACHING_BUDDY,
+          nextAgent: AgentType.EXPLORER,
         };
       case 'summary':
         return {

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AgentType, SessionStatus, TopicDomain, MasteryStatus } from '../types';
+import { AgentType, SessionStatus, TopicDomain, MasteryStatus, TopicRelationshipType } from '../types';
 
 // ============================================================
 // Enum Schemas
@@ -74,6 +74,21 @@ export const SessionSchema = z.object({
   durationSeconds: z.number().int().min(0),
 });
 
+export const TopicRelationshipTypeSchema = z.nativeEnum(TopicRelationshipType);
+
+export const MicroLessonSchema = z.object({
+  explainerPoints: z.array(z.string()).min(3).max(5),
+  funFacts: z.array(z.string()).min(1).max(3),
+  visualDescriptions: z.array(z.string()).min(1).max(3),
+});
+
+export const TopicRelationshipSchema = z.object({
+  id: z.string().uuid(),
+  topicId: z.string().uuid(),
+  relatedTopicId: z.string().uuid(),
+  relationshipType: TopicRelationshipTypeSchema,
+});
+
 export const TopicSchema = z.object({
   id: z.string().uuid(),
   title: z.string().min(1).max(200),
@@ -87,6 +102,7 @@ export const TopicSchema = z.object({
     max: z.number().int().max(18),
   }),
   relatedTopicIds: z.array(z.string().uuid()).optional(),
+  microLesson: MicroLessonSchema.optional(),
 });
 
 export const StudentProgressSchema = z.object({

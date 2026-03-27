@@ -1,7 +1,7 @@
 import { View, Text } from 'react-native';
 
 interface AgentHeaderProps {
-  agentType: 'coach' | 'teaching_buddy';
+  agentType: 'coach' | 'teaching_buddy' | 'explorer' | 'challenger' | 'storyteller';
 }
 
 const AGENT_INFO = {
@@ -16,6 +16,24 @@ const AGENT_INFO = {
     tagline: 'Curious & confused — teach me!',
     avatar: '🤖',
     color: 'bg-accent-100',
+  },
+  explorer: {
+    name: 'Explorer',
+    tagline: 'Curious mind, amazing connections!',
+    avatar: '🔭',
+    color: 'bg-emerald-100',
+  },
+  challenger: {
+    name: 'Challenger',
+    tagline: 'Real-world puzzles, can you crack them?',
+    avatar: '🧩',
+    color: 'bg-amber-100',
+  },
+  storyteller: {
+    name: 'Storyteller',
+    tagline: 'Every lesson is an adventure!',
+    avatar: '📖',
+    color: 'bg-purple-100',
   },
 };
 

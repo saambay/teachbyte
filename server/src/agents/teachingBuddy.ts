@@ -58,6 +58,7 @@ const config: AgentConfig = {
   type: AgentType.TEACHING_BUDDY,
   systemPromptTemplate: SYSTEM_PROMPT_TEMPLATE,
   maxTurns: 8,
+  temperature: 0.8,
 };
 
 export const teachingBuddyAgent: Agent = {

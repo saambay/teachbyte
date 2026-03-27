@@ -15,10 +15,19 @@ export enum SessionStatus {
   STARTING = 'starting',
   COACH_GREETING = 'coach_greeting',
   TOPIC_SELECTION = 'topic_selection',
+  EXPLORING = 'exploring',
   TEACHING = 'teaching',
+  CHALLENGING = 'challenging',
+  STORYTELLING = 'storytelling',
   COACH_SUMMARY = 'coach_summary',
   COMPLETED = 'completed',
   ABANDONED = 'abandoned',
+}
+
+export enum TopicRelationshipType {
+  PREREQUISITE = 'prerequisite',
+  RELATED = 'related',
+  BUILDS_ON = 'builds_on',
 }
 
 export enum TopicDomain {
@@ -98,6 +107,46 @@ export interface Session {
   durationSeconds: number;
 }
 
+export interface MicroLesson {
+  explainerPoints: string[];
+  funFacts: string[];
+  visualDescriptions: string[];
+}
+
+export interface TopicRelationship {
+  id: string;
+  topicId: string;
+  relatedTopicId: string;
+  relationshipType: TopicRelationshipType;
+}
+
+export enum BuddyVariant {
+  DEFAULT = 'default',
+  ROBOT = 'robot',
+  ARTIST = 'artist',
+  ADVENTURER = 'adventurer',
+}
+
+export interface ChallengeScenario {
+  id: string;
+  topicId: string;
+  title: string;
+  scenario: string;
+  question: string;
+  hints: string[];
+  difficultyLevel: 1 | 2 | 3;
+  ageRange: { min: number; max: number };
+}
+
+export interface DifficultyProfile {
+  studentId: string;
+  currentLevel: number;
+  successRate: number;
+  consecutiveSuccesses: number;
+  consecutiveFailures: number;
+  lastCalibrationAt?: Date;
+}
+
 export interface Topic {
   id: string;
   title: string;
@@ -108,6 +157,7 @@ export interface Topic {
   difficultyLevel: 1 | 2 | 3;
   ageRange: { min: number; max: number };
   relatedTopicIds?: string[];
+  microLesson?: MicroLesson;
 }
 
 export interface StudentProgress {
@@ -221,4 +271,15 @@ export interface CreateStudentRequest {
 
 export interface CreateStudentResponse {
   student: Student;
+}
+
+// Phase 2: Explorer + Topic Graph
+export interface ExplorerMicroLessonResponse {
+  microLesson: MicroLesson;
+  connections: string[];
+}
+
+export interface TopicGraphResponse {
+  topic: Topic;
+  relationships: TopicRelationship[];
 }
