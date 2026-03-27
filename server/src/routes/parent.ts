@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { UpdateParentSettingsRequestSchema } from '@teachbyte/shared';
 import { authMiddleware, verifyStudentBelongsToParent } from '../middleware/auth';
 import { getStreakData } from '../services/progressService';
+import { generateWeeklyDigest } from '../services/digestService';
 
 const prisma = new PrismaClient();
 
@@ -65,6 +66,22 @@ export async function parentRoutes(app: FastifyInstance): Promise<void> {
         streakData,
         totalTimeThisWeekSeconds,
       };
+    },
+  );
+
+  // GET /api/parent/digest/:studentId — weekly digest for parent
+  app.get<{ Params: { studentId: string } }>(
+    '/api/parent/digest/:studentId',
+    async (request, reply) => {
+      const { studentId } = request.params;
+
+      const isOwner = await verifyStudentBelongsToParent(studentId, request.parentId!);
+      if (!isOwner) {
+        return reply.status(403).send({ error: 'Access denied' });
+      }
+
+      const digest = await generateWeeklyDigest(request.parentId!, studentId);
+      return digest;
     },
   );
 

@@ -9,6 +9,12 @@ export interface StudentContext {
   lastTopicTitle?: string;
 }
 
+export interface MicroLessonContext {
+  explainerPoints: string[];
+  funFacts: string[];
+  visualDescriptions: string[];
+}
+
 export interface TopicContext {
   id: string;
   title: string;
@@ -16,6 +22,7 @@ export interface TopicContext {
   keyConcepts: string[];
   commonMisconceptions: string[];
   difficultyLevel: number;
+  microLesson?: MicroLessonContext;
 }
 
 export interface SessionContext {
@@ -30,6 +37,7 @@ export interface AgentConfig {
   type: AgentType;
   systemPromptTemplate: string;
   maxTurns: number;
+  temperature?: number;
 }
 
 export type SessionAction = 'continue' | 'transition' | 'end';
@@ -46,11 +54,25 @@ export interface AgentResponse {
   topicOptions?: { id: string; title: string; description: string }[];
 }
 
+export interface RelatedTopicInfo {
+  title: string;
+  relationship: string;
+}
+
+export interface ChallengePromptContext {
+  title: string;
+  scenario: string;
+  question: string;
+  hints: string[];
+}
+
 export interface AgentPromptParams {
   student: StudentContext;
   topic?: TopicContext;
   session: SessionContext;
   recentProgressSummary?: string;
+  relatedTopics?: RelatedTopicInfo[];
+  challengeContext?: ChallengePromptContext;
 }
 
 export interface Agent {

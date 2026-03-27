@@ -1,8 +1,11 @@
 import { PrismaClient } from '@prisma/client';
 import { AgentType } from '@teachbyte/shared';
-import { AgentPromptParams, StudentContext, TopicContext, SessionContext } from '../agents/types';
+import { Agent, AgentPromptParams, ChallengePromptContext, RelatedTopicInfo, StudentContext, TopicContext, SessionContext } from '../agents/types';
 import { coachAgent } from '../agents/coach';
 import { teachingBuddyAgent } from '../agents/teachingBuddy';
+import { explorerAgent } from '../agents/explorer';
+import { challengerAgent } from '../agents/challenger';
+import { storytellerAgent } from '../agents/storyteller';
 import { AIMessage } from './aiGateway';
 
 const prisma = new PrismaClient();
@@ -13,6 +16,7 @@ export async function assembleContext(
   studentId: string,
   sessionId: string,
   agentType: AgentType,
+  options?: { challengeContext?: ChallengePromptContext },
 ): Promise<{ systemPrompt: string; messages: AIMessage[] }> {
   // Fetch all data in parallel
   const [student, session, streak, recentProgress] = await Promise.all([
@@ -55,6 +59,15 @@ export async function assembleContext(
       commonMisconceptions: session.topic.common_misconceptions,
       difficultyLevel: session.topic.difficulty_level,
     };
+
+    // Add micro-lesson data for Explorer
+    if (agentType === AgentType.EXPLORER) {
+      topicContext.microLesson = {
+        explainerPoints: session.topic.micro_lesson_explainer_points,
+        funFacts: session.topic.micro_lesson_fun_facts,
+        visualDescriptions: session.topic.micro_lesson_visual_descriptions,
+      };
+    }
   }
 
   // Build session context
@@ -72,15 +85,30 @@ export async function assembleContext(
       ).join('\n')
     : undefined;
 
+  // Fetch related topics for Explorer
+  let relatedTopics: RelatedTopicInfo[] | undefined;
+  if (agentType === AgentType.EXPLORER && session.topic_id) {
+    relatedTopics = await getTopicRelationships(session.topic_id);
+  }
+
   const params: AgentPromptParams = {
     student: studentContext,
     topic: topicContext,
     session: sessionContext,
     recentProgressSummary: progressSummary,
+    relatedTopics,
+    challengeContext: options?.challengeContext,
   };
 
   // Get the right agent
-  const agent = agentType === AgentType.COACH ? coachAgent : teachingBuddyAgent;
+  const agentMap: Record<string, Agent> = {
+    [AgentType.COACH]: coachAgent,
+    [AgentType.TEACHING_BUDDY]: teachingBuddyAgent,
+    [AgentType.EXPLORER]: explorerAgent,
+    [AgentType.CHALLENGER]: challengerAgent,
+    [AgentType.STORYTELLER]: storytellerAgent,
+  };
+  const agent = agentMap[agentType] || coachAgent;
   let systemPrompt = agent.buildSystemPrompt(params);
 
   // Enforce token budget by truncating if needed
@@ -122,4 +150,22 @@ function summarizeConversation(
   return `${messages.length} messages exchanged. Recent:\n${summary}`;
 }
 
-export { summarizeConversation };
+async function getTopicRelationships(topicId: string): Promise<RelatedTopicInfo[]> {
+  const relationships = await prisma.topicRelationship.findMany({
+    where: { topic_id: topicId },
+    include: { relatedTopic: { select: { title: true } } },
+  });
+
+  const typeLabels: Record<string, string> = {
+    prerequisite: 'is a foundation for',
+    related: 'connects to',
+    builds_on: 'builds on',
+  };
+
+  return relationships.map((r) => ({
+    title: r.relatedTopic.title,
+    relationship: typeLabels[r.relationship_type] || 'relates to',
+  }));
+}
+
+export { summarizeConversation, getTopicRelationships };

@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { getRecommendedTopicsGraph } from './topicGraphService';
 
 const prisma = new PrismaClient();
 
@@ -56,40 +57,6 @@ export async function getStreakData(studentId: string) {
 }
 
 export async function getRecommendedTopics(studentId: string, count = 3) {
-  const student = await prisma.student.findUniqueOrThrow({
-    where: { id: studentId },
-  });
-
-  // Get student's progress
-  const progress = await prisma.studentProgress.findMany({
-    where: { student_id: studentId },
-  });
-
-  const masteredIds = progress
-    .filter((p) => p.status === 'mastered')
-    .map((p) => p.topic_id);
-
-  const inProgressIds = progress
-    .filter((p) => p.status === 'in_progress')
-    .map((p) => p.topic_id);
-
-  // Get age-appropriate topics
-  const allTopics = await prisma.topic.findMany({
-    where: {
-      age_range_min: { lte: student.age },
-      age_range_max: { gte: student.age },
-    },
-  });
-
-  // Prioritize: 1 review topic (in_progress) + 2 new topics
-  const reviewTopics = allTopics
-    .filter((t) => inProgressIds.includes(t.id))
-    .slice(0, 1);
-
-  const newTopics = allTopics
-    .filter((t) => !masteredIds.includes(t.id) && !inProgressIds.includes(t.id))
-    .sort((a, b) => a.difficulty_level - b.difficulty_level)
-    .slice(0, count - reviewTopics.length);
-
-  return [...reviewTopics, ...newTopics].slice(0, count);
+  // Use graph-aware recommendations
+  return getRecommendedTopicsGraph(studentId, count);
 }
