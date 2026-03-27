@@ -13,6 +13,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     resizeMode: 'contain',
     backgroundColor: '#4F46E5',
   },
+  newArchEnabled: false,
   ios: {
     supportsTablet: true,
     bundleIdentifier: 'com.teachbyte.app',

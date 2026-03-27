@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { TopicListRequestSchema } from '@teachbyte/shared';
 import { authMiddleware, verifyStudentBelongsToParent } from '../middleware/auth';
 import { getRecommendedTopics } from '../services/progressService';
+import { getTopicGraph } from '../services/topicGraphService';
 
 const prisma = new PrismaClient();
 
@@ -41,6 +42,19 @@ export async function topicRoutes(app: FastifyInstance): Promise<void> {
       }
 
       return topic;
+    },
+  );
+
+  // GET /api/topics/:id/graph
+  app.get<{ Params: { id: string } }>(
+    '/api/topics/:id/graph',
+    async (request, reply) => {
+      try {
+        const graph = await getTopicGraph(request.params.id);
+        return graph;
+      } catch {
+        return reply.status(404).send({ error: 'Topic not found' });
+      }
     },
   );
 
