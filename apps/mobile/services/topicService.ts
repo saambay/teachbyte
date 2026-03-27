@@ -29,3 +29,8 @@ export async function getStudentStreak(studentId: string) {
   const response = await api.get(`/api/students/${studentId}/streak`);
   return response.data;
 }
+
+export async function getWeeklyDigest(studentId: string) {
+  const response = await api.get(`/api/parent/digest/${studentId}`);
+  return response.data;
+}

@@ -3,6 +3,7 @@ import { SEED_TOPICS, TEST_PARENT_ID, TEST_STUDENT_ID } from './topics';
 import { MICRO_LESSONS } from './microLessons';
 import { TOPIC_RELATIONSHIPS } from './topicRelationships';
 import { CHALLENGE_SCENARIOS } from './challengeScenarios';
+import { MATH_TOPICS, MATH_MICRO_LESSONS } from './mathTopics';
 
 const prisma = new PrismaClient();
 
@@ -60,11 +61,37 @@ async function main() {
       created++;
     }
   }
-  console.log(`Seeded ${created} topics (${SEED_TOPICS.length - created} already existed)`);
+  console.log(`Seeded ${created} science topics (${SEED_TOPICS.length - created} already existed)`);
+
+  // Seed math topics
+  let mathCreated = 0;
+  for (const topic of MATH_TOPICS) {
+    const existing = await prisma.topic.findFirst({
+      where: { title: topic.title },
+    });
+
+    if (!existing) {
+      await prisma.topic.create({ data: topic });
+      mathCreated++;
+    }
+  }
+  console.log(`Seeded ${mathCreated} math topics (${MATH_TOPICS.length - mathCreated} already existed)`);
 
   // Populate micro-lesson content on topics
   let microLessonCount = 0;
   for (const [title, lesson] of Object.entries(MICRO_LESSONS)) {
+    const result = await prisma.topic.updateMany({
+      where: { title },
+      data: {
+        micro_lesson_explainer_points: lesson.explainer_points,
+        micro_lesson_fun_facts: lesson.fun_facts,
+        micro_lesson_visual_descriptions: lesson.visual_descriptions,
+      },
+    });
+    if (result.count > 0) microLessonCount++;
+  }
+  // Also populate math micro-lessons
+  for (const [title, lesson] of Object.entries(MATH_MICRO_LESSONS)) {
     const result = await prisma.topic.updateMany({
       where: { title },
       data: {
